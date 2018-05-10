@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: codeblock
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bitcoind
+  namespace: codeblock
+  labels:
+    app: bitcoind
+spec:
+  ports:
+  - port: 8333
+    name: bitcoin
+  selector:
+    app: bitcoind
+  type: NodePort
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bitcoind-pv-claim
+  namespace: codeblock
+  labels:
+    app: bitcoind
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bitcoind
+  namespace: codeblock
+  labels:
+    app: bitcoind
+spec:
+  strategy:
+    type: Recreate
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bitcoind
+  template:
+    metadata:
+      labels:
+        app: bitcoind
+    spec:
+      containers:
+      - name: bitcoind
+        image: quay.io/codeblock/bitcoind:0.16.0
+        imagePullPolicy: Always
+        args: ["-externalip=174.138.124.245"]
+        ports:
+        - containerPort: 8332
+        - containerPort: 8333
+        - containerPort: 18332
+        - containerPort: 18333
+        - containerPort: 18443
+        - containerPort: 18444
+        volumeMounts:
+        - name: bitcoind-data
+          mountPath: /home/bitcoin/.bitcoin
+      volumes:
+      - name: bitcoind-data
+        persistentVolumeClaim:
+          claimName: bitcoind-pv-claim
+      nodeSelector:
+        kubernetes.io/hostname: tesla
